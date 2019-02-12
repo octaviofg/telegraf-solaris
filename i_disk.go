@@ -37,7 +37,15 @@ func (_ *DiskStats) SampleConfig() string {
 }
 
 func (s *DiskStats) Gather(acc Accumulator) error {
-	output, err := exec.Command("df", "-k").CombinedOutput()
+	var df_arg = []string{"-k"}
+
+	if len(s.MountPoints) > 0 {
+		for _, value := range s.MountPoints {
+			df_arg = append(df_arg, value)
+		}
+	}
+
+	output, err := exec.Command("df", df_arg[0:]...).CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting Disk info: %s", err.Error())
 	}
