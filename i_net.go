@@ -74,24 +74,18 @@ func (s *NetIOStats) Gather(acc Accumulator) error {
 				field := reg.ReplaceAllString(data[0], "${1}")
 
 				switch field {
-				case "obytes":
+				case "obytes64":
 					fields["bytes_sent"], _ = strconv.ParseInt(data[1], 10, 0)
-					break
-				case "rbytes":
+				case "rbytes64":
 					fields["bytes_recv"], _ = strconv.ParseInt(data[1], 10, 0)
-					break
-				case "opackets":
+				case "opackets64":
 					fields["packets_sent"], _ = strconv.ParseInt(data[1], 10, 0)
-					break
-				case "ipackets":
+				case "ipackets64":
 					fields["packets_recv"], _ = strconv.ParseInt(data[1], 10, 0)
-					break
 				case "ierrors":
 					fields["err_in"], _ = strconv.ParseInt(data[1], 10, 0)
-					break
 				case "oerrors":
 					fields["err_out"], _ = strconv.ParseInt(data[1], 10, 0)
-					break
 				}
 			}
 			acc.AddGauge("net", fields, tags, time.Now())

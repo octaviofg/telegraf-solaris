@@ -31,15 +31,14 @@ func (p *Processes) Gather(acc Accumulator) error {
 // Gets empty fields of metrics based on the OS
 func getEmptyFields() map[string]interface{} {
 	fields := map[string]interface{}{
-		"blocked":       int64(0),
+		"wait":          int64(0),
 		"zombies":       int64(0),
 		"stopped":       int64(0),
 		"running":       int64(0),
+		"runnable":      int64(0),
 		"sleeping":      int64(0),
 		"total":         int64(0),
-		"unknown":       int64(0),
-		"total_threads": int64(0),
-		"wait":          int64(0),
+// 		"total_threads": int64(0),
 	}
 	return fields
 }
@@ -62,18 +61,20 @@ func (p *Processes) gatherFromPS(fields map[string]interface{}) error {
 			fields["wait"] = fields["wait"].(int64) + int64(1)
 		case "Z":
 			fields["zombies"] = fields["zombies"].(int64) + int64(1)
-		case "X":
-			fields["dead"] = fields["dead"].(int64) + int64(1)
+// 		case "X":
+// 			fields["dead"] = fields["dead"].(int64) + int64(1)
 		case "T":
 			fields["stopped"] = fields["stopped"].(int64) + int64(1)
 		case "O":
 			fields["running"] = fields["running"].(int64) + int64(1)
 		case "S":
 			fields["sleeping"] = fields["sleeping"].(int64) + int64(1)
-		case "I":
-			fields["idle"] = fields["idle"].(int64) + int64(1)
-		case "?":
-			fields["unknown"] = fields["unknown"].(int64) + int64(1)
+		case "R":
+			fields["runnable"] = fields["runnable"].(int64) + int64(1)
+// // 		case "I":
+// // 			fields["idle"] = fields["idle"].(int64) + int64(1)
+// 		case "?":
+// 			fields["unknown"] = fields["unknown"].(int64) + int64(1)
 		default:
 			log.Printf("I! processes: Unknown state [ %s ] from ps",
 				string(stats[1]))

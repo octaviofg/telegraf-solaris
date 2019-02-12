@@ -1,6 +1,7 @@
 package main
 
 import (
+	"regexp"
 	"os/exec"
 	"strings"
 	"strconv"
@@ -44,34 +45,57 @@ func (_ *CPUStats) SampleConfig() string {
 }
 
 func (s *CPUStats) Gather(acc Accumulator) error {
-	output, err := exec.Command("vmstat", "-S").CombinedOutput()
+	var tidle, tsystem, tuser, temp, ncpus int64
+	
+	output, err := exec.Command("kstat", "-p", "-m", "cpu_stat").CombinedOutput()
+	
+// 	fmt.Printf("#%s#", output)
+// 	fmt.Printf("#%s#", err)
+	
 	if err != nil {
 		return fmt.Errorf("error getting CPU info: %s", err.Error())
 	}
-
+	
 	now := time.Now()
-
+	
 	stats := string(output)
 	rows := strings.Split(stats, "\n")
-	rows = rows[1:]
-	data := make(map[string]float64)
-	headers := strings.Fields(rows[0])
-	values := strings.Fields(rows[1])
-	for count := 0; count < len(headers); count++ {
-		v, _ := strconv.ParseFloat(values[count], 64)
-		data[headers[count]] = v
+	rows = rows[0: len(rows)-1]
+	for _, row := range rows {
+		data := strings.Fields(row)
+		reg := regexp.MustCompile(".*:.*:.*:")
+		field := reg.ReplaceAllString(data[0], "${1}")
+		
+		switch field {
+		case "idle":
+			temp, _ = strconv.ParseInt(data[1], 10, 0)
+			tidle += temp
+			ncpus++
+		case "user":
+			temp, _ = strconv.ParseInt(data[1], 10, 0)
+			tuser += temp
+		case "kernel":
+			temp, _ = strconv.ParseInt(data[1], 10, 0)
+			tsystem += temp
+		}
 	}
+	
+	tidle /= ncpus
+	tuser /= ncpus
+	tsystem /= ncpus
 
+// 	fmt.Printf("i: %d, u: %d, k: %d, n: %d\n", tidle, tuser, tsystem, ncpus)
+
+	fields := map[string]interface{}{
+		"idle":   tidle,
+		"user":   tuser,
+		"kernel": tsystem,
+	}
+	
 	tags := map[string]string{
 		"cpu": "cpu-total",
 	}
-
-	fieldsC := map[string]interface{}{
-		"usage_idle":   data["id"],
-		"usage_system": data["sy"],
-		"usage_user":   data["us"],
-	}
-
-	acc.AddCounter("cpu", fieldsC, tags, now)
+	
+	acc.AddCounter("cpu", fields, tags, now)
 	return nil
 }

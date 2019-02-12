@@ -1,10 +1,10 @@
 package main
 
 import (
-	"regexp"
+// 	"regexp"
 	"os/exec"
 	"strconv"
-	"errors"
+// 	"errors"
 	"time"
 	"strings"
 	"fmt"
@@ -20,67 +20,45 @@ func (_ *MemStats) Description() string {
 
 func (_ *MemStats) SampleConfig() string { return "" }
 
-var globalZoneMemoryCapacityMatch = regexp.MustCompile(`Memory size: ([\d]+) Megabytes`)
-
-func globalZoneMemoryCapacity() (uint64, error) {
-	prtconf, err := exec.LookPath("/usr/sbin/prtconf")
-	if err != nil {
-		return 0, err
-	}
-
-	out, err := exec.Command(prtconf).CombinedOutput()
-	if err != nil {
-		return 0, err
-	}
-
-	match := globalZoneMemoryCapacityMatch.FindAllStringSubmatch(string(out), -1)
-	if len(match) != 1 {
-		return 0, errors.New("memory size not contained in output of /usr/sbin/prtconf")
-	}
-
-	totalMB, err := strconv.ParseUint(match[0][1], 10, 64)
-	if err != nil {
-		return 0, err
-	}
-
-	return totalMB * 1024 * 1024, nil
-}
-
 func (s *MemStats) Gather(acc Accumulator) error {
-	now := time.Now()
-
-	total, err := globalZoneMemoryCapacity()
-	if err != nil {
-		return err
-	}
-
-	output, err := exec.Command("vmstat", "-S").CombinedOutput()
+	output, err := exec.Command("top", "-n", "-u").CombinedOutput()
 	if err != nil {
 		return fmt.Errorf("error getting Memory info: %s", err.Error())
 	}
 
+	now := time.Now()
+
 	stats := string(output)
 	rows := strings.Split(stats, "\n")
-	rows = rows[1:]
-	data := make(map[string]uint64)
-	headers := strings.Fields(rows[0])
-	values := strings.Fields(rows[1])
-	for count := 0; count < len(headers); count++ {
-		v, _ := strconv.ParseUint(values[count], 10, 0)
-		data[headers[count]] = v
-	}
-
-	free := data["free"] * 1024
-
+	data := strings.Fields(rows[4])
+	total := memconv(data[1])
+	free  := memconv(data[4])
+	
 	fields := map[string]interface{}{
-		"total":             total,
-		"available":         free,
-		"free":              free,
-		"used":              total - free,
-		"available_percent": 100 * float64(free) / float64(total),
-		"used_percent":      100 * float64(total-free) / float64(total),
+		"total": total,
+		"free":  free,
+		"used":  total - free,
+		"free_percent": 100 * float64(free) / float64(total),
+		"used_percent": 100 * float64(total - free) / float64(total),
 	}
-
+	
 	acc.AddCounter("mem", fields, nil, now)
 	return nil
+}
+
+func memconv(memory string) int {
+	if strings.Contains(memory, "G") {
+		value, _ := strconv.Atoi(strings.TrimSuffix(memory, "G"))
+		return value * 1024 * 1024 * 1024
+	}
+	if strings.Contains(memory, "M") {
+		value, _ := strconv.Atoi(strings.TrimSuffix(memory, "M"))
+		return value * 1024 * 1024
+	}
+	if strings.Contains(memory, "k") {
+		value, _ := strconv.Atoi(strings.TrimSuffix(memory, "k"))
+		return value * 1024
+	}
+	value, _ := strconv.Atoi(memory)
+	return value
 }
