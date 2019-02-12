@@ -49,9 +49,6 @@ func (s *CPUStats) Gather(acc Accumulator) error {
 	
 	output, err := exec.Command("kstat", "-p", "-m", "cpu_stat").CombinedOutput()
 	
-// 	fmt.Printf("#%s#", output)
-// 	fmt.Printf("#%s#", err)
-	
 	if err != nil {
 		return fmt.Errorf("error getting CPU info: %s", err.Error())
 	}
@@ -83,8 +80,6 @@ func (s *CPUStats) Gather(acc Accumulator) error {
 	tidle /= ncpus
 	tuser /= ncpus
 	tsystem /= ncpus
-
-// 	fmt.Printf("i: %d, u: %d, k: %d, n: %d\n", tidle, tuser, tsystem, ncpus)
 
 	fields := map[string]interface{}{
 		"idle":   tidle,
